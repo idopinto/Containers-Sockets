@@ -101,7 +101,7 @@ int child(void* args){
     }
     fptr3 << 1;
 //    //run the terminal / new program
-    if(execvp(ci->path_to_program_to_run_within_container,ci->args_for_program)) < 0){
+    if(execvp(ci->path_to_program_to_run_within_container,ci->args_for_program)< 0){
         err_n_die(EXECVP_ERR);
     }
 }
