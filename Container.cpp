@@ -27,11 +27,11 @@
 #define CHDIR_ERR "chdir failed..."
 #define MOUNT_ERR "mount failed..."
 #define MKDIR_ERR "mkdir failed..."
-#define OPEN_ERR "open failed"
-#define EXECVP_ERR "execvp failed"
-#define REMOVE_ERR "remove failed"
-#define RM_DIR_ERR "rm dir failed"
-#define UMOUNT_ERR "umount failed"
+#define OPEN_ERR "open failed..."
+#define EXECVP_ERR "execvp failed..."
+#define REMOVE_ERR "remove failed..."
+#define RM_DIR_ERR "rm dir failed..."
+#define UMOUNT_ERR "umount failed..."
 //#define ROOT_PATH "/cs/usr/idopinto12/OS/OS_EX5/ubuntu-base-14.04-core-arm64"
 
 #define MALLOC_ERR "stack allocation failed"
@@ -52,7 +52,6 @@ typedef struct ContainerInfo{
 int child(void* args){
     ContainerInfo* ci = (ContainerInfo*) args;
     // change the hostname
-
     if(sethostname(ci->new_host_name,strlen(ci->new_host_name)) < 0){
         err_n_die(CH_HOST_NAME_ERR);
     }
@@ -83,19 +82,19 @@ int child(void* args){
     std::fstream fptr1;
     std::fstream fptr2;
     std::fstream fptr3;
-    fptr1.open("cgroup.procs");
+//    chdir("/sys/fs/cgroup/pids/")
+    fptr1.open("/sys/fs/cgroup/pids/cgroup.procs");
     if(!fptr1){
         err_n_die(OPEN_ERR);
     }
     fptr1 << getpid(); // TODO correct?!
-
-    fptr2.open("pids.max");
+    fptr2.open("/sys/fs/cgroup/pids/pids.max");
     if(!fptr2){
         err_n_die(OPEN_ERR);
     }
     fptr2 << ci->num_processes;
 
-    fptr3.open("notify_on_release");
+    fptr3.open("/sys/fs/cgroup/pids/notify_on_release");
     if(!fptr3){
         err_n_die(OPEN_ERR);
     }
@@ -125,7 +124,6 @@ int main(int argc, char* argv[]){
     if(argc != 6){
         // error?
     }
-
     ContainerInfo containerInfo ={.new_host_name= argv[1],.new_filesystem_directory=argv[2],
                                   .num_processes = reinterpret_cast<int*>(argv[3]),
                                   .path_to_program_to_run_within_container=argv[4],
@@ -141,13 +139,13 @@ int main(int argc, char* argv[]){
 }
 
 void delete_files_directories(){
-    if(remove("notify_on_release") < 0){
+    if(remove("/sys/fs/cgroup/pids/notify_on_release") < 0){
         err_n_die(REMOVE_ERR);
     }
-    if(remove("pids.max") < 0){
+    if(remove("/sys/fs/cgroup/pids/pids.max") < 0){
         err_n_die(REMOVE_ERR);
     }
-    if(remove("cgroup.procs") < 0){
+    if(remove("/sys/fs/cgroup/pids/cgroup.procs") < 0){
         err_n_die(REMOVE_ERR);
     }
     if(rmdir("/sys/fs/cgroup/pids") < 0){
