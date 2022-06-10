@@ -32,22 +32,34 @@
 #define REMOVE_ERR "remove failed..."
 #define RM_DIR_ERR "rm dir failed..."
 #define UMOUNT_ERR "umount failed..."
-//#define ROOT_PATH "/cs/usr/idopinto12/OS/OS_EX5/ubuntu-base-14.04-core-arm64"
 
-#define MALLOC_ERR "stack allocation failed"
+#define MALLOC_STACK_ERR "stack allocation failed"
+#define MALLOC__ARGV_ERR "array allocation failed"
 
 void err_n_die(const char *fmt, ...);
-void delete_files_directories();
+void delete_files_directories(void *args);
 
 typedef struct ContainerInfo{
 
     char* new_host_name;
     char* new_filesystem_directory;
-    int *num_processes;
+    char *num_processes;
     char* path_to_program_to_run_within_container;
-    char* const* args_for_program;
+    char** args_for_program;
+
+
 
 }ContainerInfo;
+
+//void write_to_file(char* filepath,char* to_write){
+//    std::ofstream file;
+//    file.open(filepath);
+//    if(!file){
+//        err_n_die(OPEN_ERR);
+//    }
+//    file << to_write;
+//    file.close();
+//}
 
 int child(void* args){
     ContainerInfo* ci = (ContainerInfo*) args;
@@ -63,12 +75,10 @@ int child(void* args){
     if(chdir(ci->new_filesystem_directory) < 0){
         err_n_die(CHDIR_ERR);
     }
-    // mount the new procfs
-    if(mount("proc","/proc","proc",0,0)<0){
-        err_n_die(MOUNT_ERR);
-    }
+
 
     // limit the number of processes that can run within the container
+
     if(mkdir("/sys/fs",DIR_MODE) < 0){
         err_n_die(MKDIR_ERR);
     }
@@ -79,35 +89,45 @@ int child(void* args){
         err_n_die(MKDIR_ERR);
     }
 
-    std::fstream fptr1;
-    std::fstream fptr2;
-    std::fstream fptr3;
-//    chdir("/sys/fs/cgroup/pids/")
-    fptr1.open("/sys/fs/cgroup/pids/cgroup.procs");
-    if(!fptr1){
+    std::ofstream procs_file;
+    procs_file.open("/sys/fs/cgroup/pids/cgroup.procs");
+    if(!procs_file){
         err_n_die(OPEN_ERR);
     }
-    fptr1 << getpid(); // TODO correct?!
-    fptr2.open("/sys/fs/cgroup/pids/pids.max");
-    if(!fptr2){
-        err_n_die(OPEN_ERR);
-    }
-    fptr2 << ci->num_processes;
+    procs_file << getpid();
+    procs_file.close();
 
-    fptr3.open("/sys/fs/cgroup/pids/notify_on_release");
-    if(!fptr3){
+    std::ofstream max_file;
+    max_file.open("/sys/fs/cgroup/pids/pids.max");
+    if(!max_file){
         err_n_die(OPEN_ERR);
     }
-    fptr3 << 1;
-//    //run the terminal / new program
+    max_file << *ci->num_processes;
+    max_file.close();
+
+    std::ofstream on_release_file;
+    on_release_file.open("/sys/fs/cgroup/pids/notify_on_release");
+    if(!on_release_file){
+        err_n_die(OPEN_ERR);
+    }
+    on_release_file << 1;
+    on_release_file.close();
+
+
+// mount the new procfs
+    if(mount("proc","/proc","proc",0,0)<0){
+        err_n_die(MOUNT_ERR);
+    }
     if(execvp(ci->path_to_program_to_run_within_container,ci->args_for_program)< 0){
         err_n_die(EXECVP_ERR);
     }
+
+    return 0;
 }
-int create_new_process(void* args){
+void* create_new_process(void* args){
     void* stack = (void*)malloc(STACK);
     if (!stack){
-        err_n_die(MALLOC_ERR);
+        err_n_die(MALLOC_STACK_ERR);
     }
 
     // CLONE_NWEPID = new namespace of process IDs
@@ -117,46 +137,66 @@ int create_new_process(void* args){
         err_n_die(CLONE_ERR);
     }
     wait(NULL);
-
+    return stack;
 }
 
-int main(int argc, char* argv[]){
-    if(argc != 6){
-        // error?
+//int main(int argc, char* argv[]){
+//    // parse from argv the program's argument we want to run. can be zero or more
+//    char** arg_for_program= (char **) malloc(( argc - 3)*sizeof (char *));
+//    if(!arg_for_program){
+//        err_n_die(MALLOC__ARGV_ERR);
+//    }
+//    for(int i=0; i<argc -3; i++){
+//        *(arg_for_program + i) =*(argv + i + 4);
+//    }
+//    *(arg_for_program + argc - 4) =nullptr;
+//
+//    // init
+//    ContainerInfo containerInfo ={.new_host_name= argv[1],.new_filesystem_directory=argv[2],
+//                                  .num_processes = argv[3],
+//                                  .path_to_program_to_run_within_container=argv[4],
+//                                  .args_for_program= arg_for_program};
+//    // create new process
+//    void* stack = create_new_process(&containerInfo);
+//
+//    // delete the files directories you created when you defind the cgorup for the container
+//    delete_files_directories(&containerInfo);
+//
+//    // unmount the container's filesystem from the host
+//    std::string filesystem=argv[2];
+//    if (umount(const_cast<char *>((filesystem+"/proc").c_str())) < 0 ){
+//        err_n_die(UMOUNT_ERR);
+//    }
+//
+//    // free recourses
+//    free(stack);
+//    free(arg_for_program);
+//    return 0;
+//}
+
+void remove_file(std::string filesystem ,const char* path_to_remove){
+    filesystem += path_to_remove;
+    if(remove(const_cast<char *>(filesystem.c_str())) < 0){
+        err_n_die(REMOVE_ERR);
     }
-    ContainerInfo containerInfo ={.new_host_name= argv[1],.new_filesystem_directory=argv[2],
-                                  .num_processes = reinterpret_cast<int*>(argv[3]),
-                                  .path_to_program_to_run_within_container=argv[4],
-                                  .args_for_program= reinterpret_cast<char *const *>(argv[5])};
-    create_new_process(&containerInfo);
-    delete_files_directories();
-    if (umount("proc") < 0 ){
-        err_n_die(UMOUNT_ERR);
-    }
-    // unmount the container's filesystem from the host
-    // delete the files directories you created when you defind the cgorup for the container
-    return 0;
 }
 
-void delete_files_directories(){
-    if(remove("/sys/fs/cgroup/pids/notify_on_release") < 0){
-        err_n_die(REMOVE_ERR);
-    }
-    if(remove("/sys/fs/cgroup/pids/pids.max") < 0){
-        err_n_die(REMOVE_ERR);
-    }
-    if(remove("/sys/fs/cgroup/pids/cgroup.procs") < 0){
-        err_n_die(REMOVE_ERR);
-    }
-    if(rmdir("/sys/fs/cgroup/pids") < 0){
+void remove_directory(std::string filesystem ,const char* path_to_remove){
+    filesystem += path_to_remove;
+    if(rmdir(const_cast<char *>(filesystem.c_str())) < 0){
         err_n_die(RM_DIR_ERR);
     }
-    if(rmdir("/sys/fs/cgroup") <0){
-        err_n_die(RM_DIR_ERR);
-    }
-    if(rmdir("/sys/fs") < 0){
-        err_n_die(RM_DIR_ERR);
-    }
+}
+
+void delete_files_directories(void* args){
+    ContainerInfo* ci = (ContainerInfo*) args;
+    std::string fs = ci->new_filesystem_directory;
+    remove_file(fs,"/sys/fs/cgroup/pids/notify_on_release");
+    remove_file(fs,"/sys/fs/cgroup/pids/pids.max");
+    remove_file(fs,"/sys/fs/cgroup/pids/cgroup.procs");
+    remove_directory(fs,"/sys/fs/cgroup/pids");
+    remove_directory(fs,"/sys/fs/cgroup");
+    remove_directory(fs,"/sys/fs");
 }
 
 void err_n_die(const char *fmt,...){
