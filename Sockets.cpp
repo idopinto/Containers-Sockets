@@ -12,7 +12,7 @@
 #include <cstdio>
 #include <string>
 
-#define MAX_CLIENTS 2
+#define MAX_CLIENTS 5
 #define MAXHOSTNAME 256
 #define BUFFER_SIZE 256
 
