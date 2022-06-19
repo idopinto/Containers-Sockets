@@ -2,7 +2,7 @@
 // Created by idopinto12 on 06/06/2022.
 //
 
-#include "Container.h"
+#include "container.h"
 #include <stdio.h>
 #include <sched.h>
 #include <cstdlib>
@@ -91,6 +91,7 @@ int child(void* args){
     if(!procs_file){
         error_massage(OPEN_ERR);
     }
+    chmod("/sys/fs/cgroup/pids/cgroup.procs",DIR_MODE);
     procs_file << getpid();
     procs_file.close();
 
@@ -99,6 +100,8 @@ int child(void* args){
     if(!max_file){
         error_massage(OPEN_ERR);
     }
+    chmod("/sys/fs/cgroup/pids/pids.max",DIR_MODE);
+
     max_file << *ci->num_processes;
     max_file.close();
 
@@ -107,6 +110,8 @@ int child(void* args){
     if(!on_release_file){
         error_massage(OPEN_ERR);
     }
+    chmod("/sys/fs/cgroup/pids/notify_on_release",DIR_MODE);
+
     on_release_file << 1;
     on_release_file.close();
 
@@ -190,8 +195,9 @@ int main(int argc, char* argv[]){
     if(!arg_for_program){
         error_massage(MALLOC__ARGV_ERR);
     }
-    for(int i=0; i<argc -3; i++){
-        *(arg_for_program + i) =*(argv + i + 4);
+    *(arg_for_program)=*(argv + 4);
+    for(int i=1; i<argc -4 ; ++i){
+        *(arg_for_program + i ) =*(argv + i +4 );
     }
     *(arg_for_program + argc - 4) =nullptr;
 

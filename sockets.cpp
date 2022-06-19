@@ -31,6 +31,12 @@
 
 #define ESTABLISH_ERR " server establish failed... "
 
+#define LISTEN_ERR "listen function failed... "
+
+#define READ_DATA_ERR "read_data function failed..."
+
+#define SYSTEM_ERR "system function failed..."
+
 /**
  * this function prints the error massages and exit the program
  * @param fmt the massage
@@ -72,15 +78,12 @@ int establish_server_socket(unsigned short portnum) {
     if ((server_socket= socket(AF_INET, SOCK_STREAM, 0)) < 0)
         return(-1);
 
-//    printf("binding socket to server address... \n");
     if (bind(server_socket , (struct sockaddr *)&server_address , sizeof(struct sockaddr_in)) < 0) {
         close(server_socket);
         return(-1);
     }
-//    printf("binding SUCCESS \n");
-//    printf("start listening to maximum 5 queued connects \n");
 
-    listen(server_socket, MAX_CLIENTS); /* max # of queued connects *///TODO VALIDATION??
+    if(listen(server_socket, MAX_CLIENTS)<0){error_massage(LISTEN_ERR);}
     return server_socket;
 }
 
@@ -166,9 +169,11 @@ int main(int argc, char* argv[]){
             if(new_socket_fd == -1){
                 error_massage(GET_CONNECTION_ERR);
             }
-            read_data(new_socket_fd,recv_command_to_execute,BUFFER_SIZE);//TODO VALIDATION
+            if(read_data(new_socket_fd,recv_command_to_execute,BUFFER_SIZE)==-1){error_massage(READ_DATA_ERR);}
             // run the command that client sent
-            system(recv_command_to_execute); //TODO VALIDATION
+            if(system(recv_command_to_execute)<0){
+                error_massage(SYSTEM_ERR);
+            };
             close(new_socket_fd);
             bzero(recv_command_to_execute, strlen(recv_command_to_execute));
         }
