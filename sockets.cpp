@@ -139,7 +139,9 @@ int read_data(int server_socket, char *buf, int buffer_length) {
             buf += br;
         }
         if (br < 1) {
-            return -1;
+            error_massage(READ_DATA_ERR);
+
+
         }
     }
     return bcount;
@@ -169,7 +171,7 @@ int main(int argc, char* argv[]){
             if(new_socket_fd == -1){
                 error_massage(GET_CONNECTION_ERR);
             }
-            if(read_data(new_socket_fd,recv_command_to_execute,BUFFER_SIZE)==-1){error_massage(READ_DATA_ERR);}
+            read_data(new_socket_fd,recv_command_to_execute,BUFFER_SIZE);
             // run the command that client sent
             if(system(recv_command_to_execute)<0){
                 error_massage(SYSTEM_ERR);
