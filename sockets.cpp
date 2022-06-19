@@ -58,7 +58,9 @@ int establish_server_socket(unsigned short portnum) {
 
 
     //hostnet initialization
-    gethostname(myname, MAXHOSTNAME);
+    if(gethostname(myname, MAXHOSTNAME)<0){
+        return (-1);
+    }
     hp = gethostbyname(myname);
     if (hp == NULL)
         return(-1);
@@ -138,11 +140,15 @@ int read_data(int server_socket, char *buf, int buffer_length) {
             bcount += br;
             buf += br;
         }
-        if (br < 1) {
-            error_massage(READ_DATA_ERR);
 
+        if (br == 0 ) {
+            break;
 
         }
+        if(br == -1){
+            error_massage(READ_DATA_ERR);
+        }
+
     }
     return bcount;
 }
